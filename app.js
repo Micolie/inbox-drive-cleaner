@@ -60,7 +60,8 @@ async function renderQuota(slot, email) {
     const q = await Drive.about(slot);
     const pct = q.limit ? Math.min(100, (q.usage / q.limit) * 100) : 0;
     box.innerHTML = `${fmtBytes(q.usage)} of ${fmtBytes(q.limit ?? Infinity)} used · <b>${fmtBytes(q.free)} free</b>
-      <div class="meter"><div style="width:${pct.toFixed(1)}%"></div></div>`;
+      <div class="meter"><div style="width:${pct.toFixed(1)}%"></div></div>
+      Drive files ${fmtBytes(q.drive)} · Drive Trash ${fmtBytes(q.trash)} · Gmail &amp; Photos ${fmtBytes(q.other)}`;
     quota[slot] = q;
     renderFileSummary();
   } catch (e) {
@@ -380,7 +381,7 @@ let stopRequested = false;
 action($("#findFiles"), "#fileStatus", async () => {
   status("#fileStatus", "Looking…");
   const minBytes = Math.max(0, Number($("#minMb").value) || 0) * 1024 * 1024;
-  files = await Drive.largeFiles("driveFrom", minBytes, 500, (n) => status("#fileStatus", `Found ${n}…`));
+  files = await Drive.largeFiles("driveFrom", minBytes, 500, (scanned, found) => status("#fileStatus", `Checked ${scanned} files, ${found} big enough…`));
   status("#fileStatus", files.length ? `${files.length} files, biggest first.` : "No files that big.", "good");
   renderFiles();
 });

@@ -52,8 +52,8 @@ from:(facebookmail.com OR meta.com) category:promotions older_than:7d -is:starre
 
 ## Drive transfer
 
-1. Connect the **From** account (running out of space) and the **To** account (has free space). Each shows how much of its storage is used.
-2. **Find large files** lists files owned by From, biggest first, above the size you choose.
+1. Connect the **From** account (running out of space) and the **To** account (has free space). Each shows how much storage is used and what by: Drive files, Drive Trash, and Gmail & Photos. Only Drive files can be moved here. If Drive Trash is big, empty it. If Gmail & Photos is big, use Email cleanup (large-attachment rules help most).
+2. **Find large files** checks every file owned by From and lists those above the size you choose, biggest first. With many thousands of files this takes a little while.
 3. Tick files, choose what happens to the originals, and click **Move selected**.
 
 For each file, From shares it with To (without emailing), To makes its own copy inside Google (nothing is downloaded to your computer), the copy's checksum and size are compared with the original, and only then is the original trashed, deleted, or kept, as you chose. If anything fails, the original is left alone. Copies go into a folder named **Moved from <from-account>** in To's Drive.
