@@ -381,9 +381,18 @@ let stopRequested = false;
 action($("#findFiles"), "#fileStatus", async () => {
   status("#fileStatus", "Looking…");
   const minBytes = Math.max(0, Number($("#minMb").value) || 0) * 1024 * 1024;
-  files = await Drive.largeFiles("driveFrom", minBytes, 500, (scanned, found) => status("#fileStatus", `Checked ${scanned} files, ${found} big enough…`));
-  status("#fileStatus", files.length ? `${files.length} files, biggest first.` : "No files that big.", "good");
+  const found = await Drive.largeFiles("driveFrom", minBytes, 500, (scanned, n) => status("#fileStatus", `Checked ${scanned} files, ${n} big enough…`));
+  files = found.files;
   renderFiles();
+  if (files.length) return status("#fileStatus", `Checked ${found.scanned} files: ${files.length} are big enough, biggest first.`, "good");
+  // Say why nothing was found, using the storage breakdown when it's loaded.
+  const email = await Google.account("driveFrom");
+  const q = quota.driveFrom;
+  let msg = found.scanned
+    ? `Checked all ${found.scanned} files owned by ${email}. None are over ${fmtBytes(minBytes)}; the biggest is "${found.biggest.name}" (${fmtBytes(found.biggest.bytes)}). Try a smaller size.`
+    : `${email} doesn't own any Drive files. Files shared with you or in shared drives don't use your storage.`;
+  if (q) msg += ` This account's storage: Drive files ${fmtBytes(q.drive)}, Drive Trash ${fmtBytes(q.trash)}, Gmail & Photos ${fmtBytes(q.other)}.`;
+  status("#fileStatus", msg, "bad");
 });
 
 function renderFiles() {
