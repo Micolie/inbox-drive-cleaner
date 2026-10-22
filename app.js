@@ -122,29 +122,86 @@ action($("#scanSenders"), "#senderStatus", async () => {
   renderSenders();
 });
 
+let senderGroups = [];
+// address -> { date, how } for lists already unsubscribed from (kept across scans)
+let unsubscribed = {};
+const UNSUB_LABEL = { post: "1-click", mailto: "email", link: "web page" };
+
+function unsubCell(g) {
+  const methods = Object.entries(g.unsub);
+  if (!methods.length) return "";
+  const pending = methods.filter(([a]) => !unsubscribed[a]);
+  if (!pending.length) {
+    const u = unsubscribed[methods[0][0]];
+    return `<span class="pill">✓ ${u.how === "link" ? "page opened" : "unsubscribed"} ${esc(u.date)}</span>`;
+  }
+  const kinds = [...new Set(pending.map(([, m]) => UNSUB_LABEL[m.type]))];
+  return `<span class="hint">${kinds.join(", ")}</span>`;
+}
+
 function renderSenders() {
   $("#senderBox").classList.toggle("hidden", !senders.length);
-  let groups = Gmail.groupSenders(senders, $("#groupDomain").checked);
-  if ($("#onlyNewsletters").checked) groups = groups.filter((g) => g.newsletter);
+  senderGroups = Gmail.groupSenders(senders, $("#groupDomain").checked);
+  if ($("#onlyNewsletters").checked) senderGroups = senderGroups.filter((g) => g.newsletter);
   $("#senderAll").checked = false;
-  $("#senderRows").innerHTML = groups.map((g) => `
+  $("#senderRows").innerHTML = senderGroups.map((g, i) => `
     <tr>
-      <td><input type="checkbox" value="${esc(g.key)}"></td>
+      <td><input type="checkbox" data-i="${i}"></td>
       <td>${esc(g.name)}${g.name !== g.key ? ` <span class="hint">${esc(g.key)}</span>` : ""}</td>
       <td class="num">${g.count}</td>
-      <td>${g.newsletter ? '<span class="pill">unsubscribe link</span>' : ""}</td>
+      <td>${unsubCell(g)}</td>
     </tr>`).join("");
 }
 $("#groupDomain").addEventListener("change", renderSenders);
 $("#onlyNewsletters").addEventListener("change", renderSenders);
 $("#senderAll").addEventListener("change", (e) => $$("#senderRows input").forEach((c) => (c.checked = e.target.checked)));
 
-$("#addSenderRule").addEventListener("click", () => {
-  const picked = $$("#senderRows input:checked").map((c) => c.value);
-  if (!picked.length) return alert("Tick at least one sender first.");
-  const name = picked.length === 1 ? picked[0] : `${picked[0]} + ${picked.length - 1} more`;
-  addRule({ name, from: picked.join(", ") });
+const pickedSenders = () => $$("#senderRows input:checked").map((c) => senderGroups[c.dataset.i]);
+
+function addSenderRule(groups, prefix = "") {
+  const keys = groups.map((g) => g.key);
+  const name = prefix + (keys.length === 1 ? keys[0] : `${keys[0]} + ${keys.length - 1} more`);
+  addRule({ name, from: keys.join(", ") });
   $("#rules").lastElementChild.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+$("#addSenderRule").addEventListener("click", () => {
+  const picked = pickedSenders();
+  if (!picked.length) return alert("Tick at least one sender first.");
+  addSenderRule(picked);
+});
+
+action($("#unsubSelected"), "#senderStatus", async () => {
+  const picked = pickedSenders();
+  if (!picked.length) throw new Error("Tick at least one sender first.");
+  const jobs = picked.flatMap((g) => Object.entries(g.unsub).filter(([a]) => !unsubscribed[a]).map(([address, method]) => ({ address, method })));
+  if (!jobs.length) throw new Error("None of the selected senders offer an unsubscribe option you haven't used already.");
+  const pages = jobs.filter((j) => j.method.type === "link").length;
+  let msg = `Unsubscribe from ${jobs.length} mailing list${jobs.length > 1 ? "s" : ""}?`;
+  if (pages) msg += `\n\n${pages} only offer a web page. Those open in background tabs for you to finish.`;
+  if (!confirm(msg)) return;
+
+  const date = new Date().toISOString().slice(0, 10);
+  const failed = [];
+  let done = 0;
+  for (const j of jobs) {
+    status("#senderStatus", `Unsubscribing… ${done + failed.length + 1}/${jobs.length}`);
+    try {
+      await Gmail.unsubscribe(j.method);
+      unsubscribed[j.address] = { date, how: j.method.type };
+      done++;
+    } catch (e) {
+      failed.push(`${j.address} (${e.message})`);
+    }
+  }
+  await store.set({ unsubscribed });
+  if ($("#unsubRule").checked) addSenderRule(picked, "Unsubscribed: ");
+  renderSenders();
+  const opened = jobs.filter((j) => j.method.type === "link" && unsubscribed[j.address]).length;
+  let summary = `Unsubscribed from ${done - opened}`;
+  if (opened) summary += `, opened ${opened} page${opened > 1 ? "s" : ""} to finish`;
+  if (failed.length) summary += `. Failed: ${failed.join("; ")}`;
+  status("#senderStatus", summary + ". Senders can take a few days to stop.", failed.length ? "bad" : "good");
 });
 
 // ------------------------------------------------------------------ Gmail: rules
@@ -366,9 +423,10 @@ action($("#emptyTrash"), "#fileStatus", async () => {
 // ------------------------------------------------------------------ start
 
 (async () => {
-  const data = await store.get(["clientId", "rules", "tab"]);
+  const data = await store.get(["clientId", "rules", "tab", "unsubscribed"]);
   $("#clientId").value = data.clientId || "";
   rules = data.rules || [];
+  unsubscribed = data.unsubscribed || {};
   renderRules();
   ["gmail", "driveFrom", "driveTo"].forEach(renderAccount);
   showTab(data.clientId ? data.tab || "gmail" : "setup");

@@ -50,9 +50,14 @@
             <label class="check"><input type="checkbox" id="onlyNewsletters"> Only mailing lists <span class="hint">(have an unsubscribe link)</span></label>
             <button id="addSenderRule">Add selected as a rule</button>
           </div>
+          <div class="row">
+            <button id="unsubSelected" class="primary">Unsubscribe from selected</button>
+            <label class="check"><input type="checkbox" id="unsubRule" checked> and add a rule to clean up their old emails</label>
+          </div>
+          <p class="hint">Uses the sender's own unsubscribe option, like Gmail's Unsubscribe button. <b>1-click</b> and <b>email</b> happen right here; <b>web page</b> opens the sender's page in a background tab for you to finish. Only unsubscribe from senders you recognize: for spam, it confirms your address is real (just trash those).</p>
           <div class="table-wrap scroll">
             <table>
-              <thead><tr><th><input type="checkbox" id="senderAll"></th><th>Sender</th><th>Emails</th><th>List</th></tr></thead>
+              <thead><tr><th><input type="checkbox" id="senderAll"></th><th>Sender</th><th class="num">Emails</th><th>Unsubscribe</th></tr></thead>
               <tbody id="senderRows"></tbody>
             </table>
           </div>

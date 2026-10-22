@@ -2,6 +2,7 @@
 
 Free up Google storage without paying for Google One:
 
+- **Unsubscribe**: stop marketing emails at the source, in bulk, using each sender's own unsubscribe option.
 - **Email cleanup**: set up rules once (e.g. "marketing from Meta"), then open the extension and run them. Every matching email is moved to Gmail's Trash.
 - **Drive transfer**: move your biggest Drive files from an account that is full to another Google account that still has free space (every Google account gets 15 GB free).
 
@@ -20,6 +21,18 @@ Everything runs in your browser and talks directly to Google. There is no server
 
    Each rule shows the exact Gmail search it runs. Paste it into Gmail's search box to see what it matches.
 3. **Run**: **Find matching emails** shows how many emails each rule matches, with three examples each. **Move to Trash** trashes them all (counted once if several rules match).
+
+### Unsubscribe
+
+After **Find senders**, the **Unsubscribe** column shows how each sender can be unsubscribed. This comes from the `List-Unsubscribe` header that mailing lists include, the same one Gmail's own Unsubscribe button uses:
+
+- **1-click**: the extension sends the standard one-click unsubscribe request (RFC 8058) straight to the sender.
+- **email**: the extension sends the unsubscribe email the sender asks for, from your Gmail account.
+- **web page**: the sender only offers a page. It opens in a background tab for you to finish.
+
+Tick senders and click **Unsubscribe from selected**. With **and add a rule to clean up their old emails** ticked (the default), a rule for those senders is added too, so the next run also trashes what they already sent. Senders you've unsubscribed from are remembered and marked in the list. Senders can take a few days to stop.
+
+Only unsubscribe from senders you recognize. For spam, unsubscribing confirms your address is real; trash those instead. (The sender scan never looks in Spam.)
 
 Trashed emails can be restored for 30 days, after which Gmail deletes them and the space is freed. To free it at once, empty Gmail's Trash yourself.
 
@@ -66,7 +79,8 @@ The redirect URI depends on the extension's ID, which is tied to the folder you 
 
 - Your rules, client ID and connected account emails are stored in this browser only (`chrome.storage.local`).
 - Sign-in tokens are kept in memory until Chrome closes (`chrome.storage.session`).
-- Email contents are never read: only the From, Subject, Date and List-Unsubscribe headers.
+- Email contents are never read: only the From, Subject, Date, List-Unsubscribe and List-Unsubscribe-Post headers.
+- The only emails the extension sends are unsubscribe emails, to senders you chose to unsubscribe from.
 - **Setup → Disconnect all accounts and delete saved data** signs everything out, revokes the tokens, and clears storage.
 
 ## Publishing to the Chrome Web Store
@@ -81,5 +95,5 @@ The redirect URI depends on the extension's ID, which is tied to the folder you 
 | `background.js` | Toolbar button opens the app tab |
 | `app.html` / `app.css` / `app.js` | The app: tabs, rules editor, file list |
 | `lib/google.js` | Google sign-in per account (`launchWebAuthFlow`), API calls with retry |
-| `lib/gmail.js` | Rules → Gmail search, sender scan, trash |
+| `lib/gmail.js` | Rules → Gmail search, sender scan, unsubscribe, trash |
 | `lib/drive.js` | Storage quota, large-file list, verified copy between accounts |
