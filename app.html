@@ -82,6 +82,29 @@
         </div>
         <div id="runResults"></div>
       </section>
+
+      <section class="card">
+        <h2>4. Automatic cleanup</h2>
+        <p class="hint">Runs your switched-on rules by itself and moves the matches to Trash. Chrome needs to be open; if it was closed at that time, the cleanup runs next time you open it.</p>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="schedEnabled"> Clean up automatically</label>
+          <label class="inline">
+            <select id="schedEvery">
+              <option value="daily">every day</option>
+              <option value="weekly">every week</option>
+            </select>
+          </label>
+          <label class="inline">at <select id="schedHour"></select></label>
+        </div>
+        <div class="row">
+          <label class="inline">Safety limit: if more than <input type="number" id="schedMax" min="1" step="100" value="1000"> emails match, trash nothing and tell me</label>
+          <label class="check"><input type="checkbox" id="schedNotify" checked> Notify me when emails are trashed</label>
+        </div>
+        <div class="row">
+          <button id="schedRunNow">Run automatic cleanup now</button>
+          <span id="schedStatus" class="status"></span>
+        </div>
+      </section>
     </div>
 
     <!-- ============================================================ Drive -->
@@ -141,12 +164,13 @@
         <h2>Connect to Google (one time)</h2>
         <p class="hint">The extension talks to Gmail and Drive with your own Google Cloud OAuth client, so your data only goes between your browser and Google. Full steps are in the README; in short:</p>
         <ol class="steps">
-          <li>In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>, create a project and enable the <b>Gmail API</b> and <b>Google Drive API</b>.</li>
-          <li>Under <b>OAuth consent screen</b>, choose <b>External</b>, keep it in <b>Testing</b>, and add every Google account you'll connect as a <b>test user</b>.</li>
-          <li>Under <b>Credentials</b>, create an <b>OAuth client ID</b> of type <b>Web application</b> and add this as an <b>Authorized redirect URI</b>:
+          <li>In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>, create a project, then enable the <a href="https://console.cloud.google.com/apis/library/gmail.googleapis.com" target="_blank" rel="noopener">Gmail API</a> and the <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener">Google Drive API</a>.</li>
+          <li>Open <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">Google Auth Platform</a> and click <b>Get started</b>: app name, your email, audience <b>External</b>, your email again, agree, <b>Create</b>.</li>
+          <li>Left menu <b>Audience</b> → <b>Test users</b> → <b>Add users</b>: add every Google account you'll connect.</li>
+          <li>Left menu <b>Clients</b> → <b>Create client</b> → type <b>Web application</b>. Under <b>Authorized redirect URIs</b>, add:
             <div class="row tight"><input type="text" id="redirectUrl" readonly><button id="copyRedirect">Copy</button></div>
           </li>
-          <li>Paste the client ID here:
+          <li>Click <b>Create</b> and paste the client ID here:
             <div class="row tight"><input type="text" id="clientId" placeholder="1234-abc.apps.googleusercontent.com"><button id="saveClientId" class="primary">Save</button></div>
           </li>
         </ol>

@@ -107,6 +107,7 @@ $("#resetAll").addEventListener("click", async () => {
   for (const slot of ["gmail", "driveFrom", "driveTo"]) await Google.disconnect(slot).catch(() => {});
   await store.clear();
   await chrome.storage.session.clear();
+  await chrome.runtime.sendMessage({ type: "schedule-changed" });
   location.reload();
 });
 
@@ -319,6 +320,58 @@ action($("#trashMatched"), "#runStatus", async () => {
   setTimeout(() => ($("#trashMatched").disabled = true));
 });
 
+// ------------------------------------------------------------------ Gmail: automatic cleanup
+
+const SCHED_FIELDS = { enabled: "#schedEnabled", every: "#schedEvery", hour: "#schedHour", maxPerRun: "#schedMax", notify: "#schedNotify" };
+
+$("#schedHour").innerHTML = Array.from({ length: 24 }, (_, h) =>
+  `<option value="${h}">${new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</option>`).join("");
+
+const fmtTime = (ms) => new Date(ms).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+async function renderSchedule(nextRun) {
+  const { schedule = {} } = await store.get("schedule");
+  const parts = [];
+  if (schedule.enabled && nextRun) parts.push(`Next run: ${fmtTime(nextRun)}.`);
+  if (schedule.lastRun) parts.push(`Last run ${fmtTime(schedule.lastRun)}: ${schedule.lastResult.message}`);
+  status("#schedStatus", parts.join(" ") || "Off.", schedule.lastResult && !schedule.lastResult.ok ? "bad" : "");
+}
+
+async function loadSchedule() {
+  const { schedule = {} } = await store.get("schedule");
+  for (const [k, sel] of Object.entries(SCHED_FIELDS)) {
+    if (schedule[k] === undefined) continue;
+    const el = $(sel);
+    if (el.type === "checkbox") el.checked = schedule[k]; else el.value = schedule[k];
+  }
+  if (schedule.hour === undefined) $("#schedHour").value = "9";
+  const { next } = await chrome.runtime.sendMessage({ type: "next-run" });
+  renderSchedule(next);
+}
+
+async function saveSchedule() {
+  const { schedule = {} } = await store.get("schedule");
+  const s = { ...schedule };
+  for (const [k, sel] of Object.entries(SCHED_FIELDS)) {
+    const el = $(sel);
+    s[k] = el.type === "checkbox" ? el.checked : el.type === "number" || k === "hour" ? Math.max(0, Number(el.value) || 0) : el.value;
+  }
+  const noRules = s.enabled && !rules.some((r) => r.enabled && Gmail.buildQuery(r));
+  if (noRules) $("#schedEnabled").checked = s.enabled = false;
+  await store.set({ schedule: s });
+  const { next } = await chrome.runtime.sendMessage({ type: "schedule-changed" });
+  await renderSchedule(next);
+  if (noRules) status("#schedStatus", "Add and switch on at least one rule first.", "bad");
+}
+Object.values(SCHED_FIELDS).forEach((sel) => $(sel).addEventListener("change", saveSchedule));
+
+action($("#schedRunNow"), "#schedStatus", async () => {
+  status("#schedStatus", "Running your rules…");
+  await chrome.runtime.sendMessage({ type: "run-cleanup-now" });
+  const { next } = await chrome.runtime.sendMessage({ type: "next-run" });
+  await renderSchedule(next);
+});
+
 // ------------------------------------------------------------------ Drive
 
 let files = [];
@@ -428,6 +481,7 @@ action($("#emptyTrash"), "#fileStatus", async () => {
   rules = data.rules || [];
   unsubscribed = data.unsubscribed || {};
   renderRules();
+  loadSchedule();
   ["gmail", "driveFrom", "driveTo"].forEach(renderAccount);
   showTab(data.clientId ? data.tab || "gmail" : "setup");
 })();

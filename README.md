@@ -3,7 +3,7 @@
 Free up Google storage without paying for Google One:
 
 - **Unsubscribe**: stop marketing emails at the source, in bulk, using each sender's own unsubscribe option.
-- **Email cleanup**: set up rules once (e.g. "marketing from Meta"), then open the extension and run them. Every matching email is moved to Gmail's Trash.
+- **Email cleanup**: set up rules once (e.g. "marketing from Meta"), then run them yourself or let them run automatically every day or week. Every matching email is moved to Gmail's Trash.
 - **Drive transfer**: move your biggest Drive files from an account that is full to another Google account that still has free space (every Google account gets 15 GB free).
 
 Everything runs in your browser and talks directly to Google. There is no server.
@@ -34,6 +34,14 @@ Tick senders and click **Unsubscribe from selected**. With **and add a rule to c
 
 Only unsubscribe from senders you recognize. For spam, unsubscribing confirms your address is real; trash those instead. (The sender scan never looks in Spam.)
 
+### Automatic cleanup
+
+Under **4. Automatic cleanup**, tick **Clean up automatically** and choose **every day** or **every week** and a time. The extension then runs your switched-on rules by itself and moves the matches to Trash. You get a notification when it trashes something (you can turn that off) or when something goes wrong. **Run automatic cleanup now** runs it straight away so you can see it work.
+
+- Chrome needs to be open. If Chrome was closed at that time, the cleanup runs next time you open it.
+- **Safety limit** (default 1,000): if more emails match than that, nothing is trashed and you're told, so a bad rule can't empty your mailbox. For a big first clean-up, use **3. Run** by hand.
+- It never pops up a sign-in window. If Google wants you to sign in again, you get a notification; open the app and reconnect the Gmail account.
+
 Trashed emails can be restored for 30 days, after which Gmail deletes them and the space is freed. To free it at once, empty Gmail's Trash yourself.
 
 Example rule, "Meta marketing": From `facebookmail.com, meta.com`, category Promotions, older than 7 days, keep starred. It runs:
@@ -56,24 +64,45 @@ For each file, From shares it with To (without emailing), To makes its own copy 
 
 Limitations: files are moved one at a time, without their folder structure. Files whose owner disabled copying for viewers can't be moved this way. Gmail, Drive and Google Photos share the same storage, so cleaning email also helps.
 
-## Setup (once, about 10 minutes)
+## Setup (once, about 15 minutes)
 
-Gmail and Drive access needs an OAuth client from your own Google Cloud project. It's free.
+Gmail and Drive access needs a sign-in client from your own Google Cloud project. It's free.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project.
-2. **APIs & Services → Library**: enable **Gmail API** and **Google Drive API**.
-3. **APIs & Services → OAuth consent screen** (Google Auth Platform):
-   - User type **External**, app name e.g. "Inbox & Drive Cleaner", your email as support and developer contact.
-   - **Data access / Scopes**: add `.../auth/gmail.modify`, `.../auth/drive` and `email`.
-   - **Audience / Test users**: add **every Google account you'll connect** (your Gmail account and both Drive accounts). Leave the app in **Testing**.
-4. Load the extension: open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick this folder. Click the extension's toolbar icon; it opens on the **Setup** tab.
-5. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
-   - Application type **Web application**.
-   - **Authorized redirect URIs**: paste the redirect URI shown on the extension's Setup tab (it looks like `https://<extension-id>.chromiumapp.org/`).
-6. Copy the client ID (`….apps.googleusercontent.com`) into the Setup tab and click **Save**.
-7. Connect your accounts on the **Email cleanup** and **Drive transfer** tabs. Google warns that the app isn't verified; that's expected for your own app in Testing. Click **Continue**.
+**A. Load the extension** (you need its redirect URI for step D)
 
-The redirect URI depends on the extension's ID, which is tied to the folder you loaded it from. If you move the folder, update the redirect URI in Cloud Console.
+1. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked**, and pick this folder.
+2. Click the extension's toolbar icon. It opens on the **Setup** tab. Leave it open.
+
+**B. Create a project and turn on the APIs**
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/). In the project picker at the top, click **New project**, name it e.g. `inbox-cleaner`, click **Create**, and make sure it's selected.
+2. Open [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com) and click **Enable**.
+3. Open [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) and click **Enable**.
+
+**C. Configure Google Auth Platform** (the page that says *"Google Auth Platform not configured yet"*)
+
+1. Open [Google Auth Platform](https://console.cloud.google.com/auth/overview) and click **Get started**.
+2. **App information**: App name `Inbox & Drive Cleaner`, User support email = your email. **Next**.
+3. **Audience**: choose **External**. **Next**.
+4. **Contact information**: your email. **Next**.
+5. **Finish**: tick the agreement, click **Continue**, then **Create**.
+6. In the left menu, click **Audience**. Under **Test users**, click **Add users** and add **every Google account you'll connect** (your Gmail account and both Drive accounts). **Save**. Leave the publishing status on **Testing**.
+
+**D. Create the client ID**
+
+1. In the left menu, click **Clients**, then **Create client**.
+2. Application type: **Web application**. Name: anything.
+3. Under **Authorized redirect URIs**, click **Add URI** and paste the redirect URI from the extension's Setup tab (it looks like `https://abcdefghijklmnop.chromiumapp.org/`). Leave **Authorized JavaScript origins** empty.
+4. Click **Create** and copy the **Client ID** (it ends in `.apps.googleusercontent.com`). You don't need the client secret.
+5. Paste the client ID into the extension's Setup tab and click **Save**.
+
+**E. Connect your accounts** on the **Email cleanup** and **Drive transfer** tabs. Google shows *"Google hasn't verified this app"*: that's expected for your own app in Testing. Click **Continue**, then allow access.
+
+If sign-in fails:
+
+- **Error 400: redirect_uri_mismatch**: the redirect URI in Clients doesn't exactly match the Setup tab (check the trailing `/`). The extension ID, and so the URI, changes if you load the extension from a different folder.
+- **Error 403: access_denied**: the account isn't in **Audience → Test users**.
+- **Error 401: invalid_client**: the client ID was pasted wrong, or you created a client of a type other than Web application.
 
 ## Privacy
 
@@ -91,8 +120,8 @@ The redirect URI depends on the extension's ID, which is tied to the folder you 
 
 | File | What it does |
 |---|---|
-| `manifest.json` | Extension manifest (MV3): `identity` and `storage` permissions |
-| `background.js` | Toolbar button opens the app tab |
+| `manifest.json` | Extension manifest (MV3): `identity`, `storage`, `alarms` and `notifications` permissions |
+| `background.js` | Toolbar button opens the app tab; runs the automatic cleanup on a timer |
 | `app.html` / `app.css` / `app.js` | The app: tabs, rules editor, file list |
 | `lib/google.js` | Google sign-in per account (`launchWebAuthFlow`), API calls with retry |
 | `lib/gmail.js` | Rules → Gmail search, sender scan, unsubscribe, trash |
